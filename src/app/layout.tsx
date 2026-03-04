@@ -1,5 +1,6 @@
 import QueryProviders from "@/providers/QueryProviders";
 import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
 
 const geistSans = Geist({
   subsets: ["latin"],
