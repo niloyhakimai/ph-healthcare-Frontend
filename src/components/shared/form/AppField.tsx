@@ -64,7 +64,7 @@ const AppField = ({
                 id={field.name}
                 name={field.name}
                 type={type}
-                value={field.state.value}
+                value={field.state.value ?? ""}
                 placeholder={placeholder}
                 onBlur={field.handleBlur}
                 onChange={(e) => field.handleChange(e.target.value)}

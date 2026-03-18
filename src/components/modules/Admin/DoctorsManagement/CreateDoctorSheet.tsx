@@ -1,0 +1,586 @@
+"use client";
+
+import AppField from "@/components/shared/form/AppField";
+import AppSubmitButton from "@/components/shared/form/AppSubmitButton";
+import { getSpecialties } from "@/services/specialty.services";
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { createDoctorClient } from "@/services/doctor.client";
+import { ApiErrorResponse, ApiErrorSource } from "@/types/api.types";
+import { Gender } from "@/types/doctor.types";
+import { ISpecialty } from "@/types/specialty.types";
+import {
+    createDoctorFormSchema,
+    CreateDoctorFormValues,
+    defaultCreateDoctorFormValues,
+    mapCreateDoctorFormValuesToPayload,
+} from "@/zod/doctor.validation";
+import { useForm } from "@tanstack/react-form";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Plus } from "lucide-react";
+import React, { useMemo, useState } from "react";
+
+type CreateDoctorSheetProps = {
+    onSuccess?: (message: string) => void;
+};
+
+type FormFieldName = keyof CreateDoctorFormValues;
+type FormFieldErrors = Partial<Record<FormFieldName, string>>;
+
+const getFieldErrorMessage = (field: {
+    state: {
+        meta: {
+            isTouched: boolean;
+            errors: unknown[];
+        };
+    };
+}) => {
+    if (!field.state.meta.isTouched || field.state.meta.errors.length === 0) {
+        return null;
+    }
+
+    const firstError = field.state.meta.errors[0];
+
+    if (typeof firstError === "string") {
+        return firstError;
+    }
+
+    if (
+        firstError
+        && typeof firstError === "object"
+        && "message" in firstError
+        && typeof firstError.message === "string"
+    ) {
+        return firstError.message;
+    }
+
+    return String(firstError);
+};
+
+const normalizeErrorPath = (path: string) =>
+    path
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/[._[\]]/g, "")
+        .replace(/=>/g, "");
+
+const getFieldNameFromApiErrorPath = (path: string): FormFieldName | null => {
+    const normalizedPath = normalizeErrorPath(path);
+
+    if (normalizedPath.includes("password")) return "password";
+    if (normalizedPath.includes("doctorname")) return "name";
+    if (normalizedPath.includes("doctoremail")) return "email";
+    if (normalizedPath.includes("doctorcontactnumber")) return "contactNumber";
+    if (normalizedPath.includes("doctoraddress")) return "address";
+    if (normalizedPath.includes("doctorregistrationnumber")) return "registrationNumber";
+    if (normalizedPath.includes("doctorexperience")) return "experience";
+    if (normalizedPath.includes("doctorgender")) return "gender";
+    if (normalizedPath.includes("doctorappointmentfee")) return "appointmentFee";
+    if (normalizedPath.includes("doctorqualification")) return "qualification";
+    if (normalizedPath.includes("doctorcurrentworkingplace")) return "currentWorkingPlace";
+    if (normalizedPath.includes("doctordesignation")) return "designation";
+    if (normalizedPath.includes("specialties")) return "specialties";
+
+    return null;
+};
+
+const mapApiErrorsToFields = (errorSources?: ApiErrorSource[]): FormFieldErrors => {
+    if (!errorSources?.length) {
+        return {};
+    }
+
+    return errorSources.reduce<FormFieldErrors>((accumulator, errorSource) => {
+        const fieldName = getFieldNameFromApiErrorPath(errorSource.path);
+
+        if (fieldName && !accumulator[fieldName]) {
+            accumulator[fieldName] = errorSource.message;
+        }
+
+        return accumulator;
+    }, {});
+};
+
+const getApiErrorMessage = (error: unknown): ApiErrorResponse | null => {
+    if (!error || typeof error !== "object") {
+        return null;
+    }
+
+    if (
+        "error" in error
+        && error.error
+        && typeof error.error === "object"
+    ) {
+        const nestedError = getApiErrorMessage(error.error);
+
+        if (nestedError) {
+            return nestedError;
+        }
+    }
+
+    if ("message" in error && typeof error.message === "string") {
+        return {
+            success: false,
+            message: error.message,
+            errorSources:
+                "errorSources" in error && Array.isArray(error.errorSources)
+                    ? (error.errorSources as ApiErrorSource[])
+                    : undefined,
+        };
+    }
+
+    return null;
+};
+
+const FieldError = ({ message }: { message?: string | null }) => {
+    if (!message) {
+        return null;
+    }
+
+    return <p className="text-sm text-destructive">{message}</p>;
+};
+
+const CreateDoctorSheet = ({ onSuccess }: CreateDoctorSheetProps) => {
+    const queryClient = useQueryClient();
+    const [open, setOpen] = useState(false);
+    const [serverError, setServerError] = useState<string | null>(null);
+    const [serverFieldErrors, setServerFieldErrors] = useState<FormFieldErrors>({});
+
+    const { data: specialtiesResponse, isLoading: isSpecialtiesLoading } = useQuery({
+        queryKey: ["specialties"],
+        queryFn: getSpecialties,
+    });
+
+    const specialties = useMemo(
+        () =>
+            [...(specialtiesResponse?.data ?? [])].sort((left: ISpecialty, right: ISpecialty) =>
+                left.title.localeCompare(right.title),
+            ),
+        [specialtiesResponse?.data],
+    );
+
+    const clearFormState = () => {
+        setServerError(null);
+        setServerFieldErrors({});
+    };
+
+    const form = useForm({
+        defaultValues: defaultCreateDoctorFormValues,
+        onSubmit: async ({ value }) => {
+            clearFormState();
+
+            const parsedValues = createDoctorFormSchema.safeParse(value);
+
+            if (!parsedValues.success) {
+                setServerError("Please review the form fields and try again.");
+                return;
+            }
+
+            try {
+                const response = await mutateAsync(mapCreateDoctorFormValuesToPayload(parsedValues.data));
+
+                if (!response.success) {
+                    setServerError(response.message || "Failed to create doctor.");
+                    return;
+                }
+
+                form.reset();
+                clearFormState();
+                onSuccess?.(response.message || "Doctor registered successfully");
+                setOpen(false);
+
+                await queryClient.invalidateQueries({ queryKey: ["doctors"] });
+            } catch (error) {
+                const apiError = getApiErrorMessage(error);
+
+                if (apiError) {
+                    setServerError(apiError.message);
+                    setServerFieldErrors(mapApiErrorsToFields(apiError.errorSources));
+                    return;
+                }
+
+                setServerError("Something went wrong while creating the doctor.");
+            }
+        },
+    });
+
+    const { mutateAsync, isPending } = useMutation({
+        mutationFn: createDoctorClient,
+    });
+
+    const handleOpenChange = (nextOpen: boolean) => {
+        setOpen(nextOpen);
+
+        if (!nextOpen) {
+            form.reset();
+            clearFormState();
+        }
+    };
+
+    return (
+        <Sheet open={open} onOpenChange={handleOpenChange}>
+            <SheetTrigger asChild>
+                <Button>
+                    <Plus className="size-4" />
+                    Create Doctor
+                </Button>
+            </SheetTrigger>
+
+            <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
+                <SheetHeader className="border-b">
+                    <SheetTitle>Create Doctor</SheetTitle>
+                    <SheetDescription>
+                        Add a doctor account and assign at least one specialty.
+                    </SheetDescription>
+                </SheetHeader>
+
+                <form
+                    className="flex h-full flex-col"
+                    noValidate
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        form.handleSubmit();
+                    }}
+                >
+                    <div className="flex-1 space-y-6 px-4 py-4">
+                        {serverError && (
+                            <Alert variant="destructive">
+                                <AlertDescription>{serverError}</AlertDescription>
+                            </Alert>
+                        )}
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <form.Field
+                                name="password"
+                                validators={{ onChange: createDoctorFormSchema.shape.password }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Password"
+                                            type="password"
+                                            placeholder="Enter a temporary password"
+                                        />
+                                        <FieldError message={serverFieldErrors.password} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="name"
+                                validators={{ onChange: createDoctorFormSchema.shape.name }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Doctor Name"
+                                            placeholder="Enter the doctor's full name"
+                                        />
+                                        <FieldError message={serverFieldErrors.name} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="email"
+                                validators={{ onChange: createDoctorFormSchema.shape.email }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Email"
+                                            type="email"
+                                            placeholder="doctor@example.com"
+                                        />
+                                        <FieldError message={serverFieldErrors.email} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="contactNumber"
+                                validators={{ onChange: createDoctorFormSchema.shape.contactNumber }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Contact Number"
+                                            placeholder="Enter contact number"
+                                        />
+                                        <FieldError message={serverFieldErrors.contactNumber} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="registrationNumber"
+                                validators={{ onChange: createDoctorFormSchema.shape.registrationNumber }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Registration Number"
+                                            placeholder="Enter registration number"
+                                        />
+                                        <FieldError message={serverFieldErrors.registrationNumber} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="experience"
+                                validators={{ onChange: createDoctorFormSchema.shape.experience }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Experience"
+                                            type="number"
+                                            placeholder="Years of experience"
+                                        />
+                                        <FieldError message={serverFieldErrors.experience} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="appointmentFee"
+                                validators={{ onChange: createDoctorFormSchema.shape.appointmentFee }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Appointment Fee"
+                                            type="number"
+                                            placeholder="Enter appointment fee"
+                                        />
+                                        <FieldError message={serverFieldErrors.appointmentFee} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="gender"
+                                validators={{ onChange: createDoctorFormSchema.shape.gender }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor={field.name}>Gender</Label>
+                                        <Select
+                                            value={field.state.value}
+                                            onValueChange={(value) => field.handleChange(value as Gender.MALE | Gender.FEMALE)}
+                                        >
+                                            <SelectTrigger className="w-full" id={field.name}>
+                                                <SelectValue placeholder="Select gender" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={Gender.MALE}>Male</SelectItem>
+                                                <SelectItem value={Gender.FEMALE}>Female</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FieldError message={getFieldErrorMessage(field) || serverFieldErrors.gender} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="qualification"
+                                validators={{ onChange: createDoctorFormSchema.shape.qualification }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Qualification"
+                                            placeholder="Enter qualification"
+                                        />
+                                        <FieldError message={serverFieldErrors.qualification} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="currentWorkingPlace"
+                                validators={{ onChange: createDoctorFormSchema.shape.currentWorkingPlace }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Current Working Place"
+                                            placeholder="Enter current working place"
+                                        />
+                                        <FieldError message={serverFieldErrors.currentWorkingPlace} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="designation"
+                                validators={{ onChange: createDoctorFormSchema.shape.designation }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5">
+                                        <AppField
+                                            field={field}
+                                            label="Designation"
+                                            placeholder="Enter designation"
+                                        />
+                                        <FieldError message={serverFieldErrors.designation} />
+                                    </div>
+                                )}
+                            </form.Field>
+
+                            <form.Field
+                                name="address"
+                                validators={{ onChange: createDoctorFormSchema.shape.address }}
+                            >
+                                {(field) => (
+                                    <div className="space-y-1.5 md:col-span-2">
+                                        <Label htmlFor={field.name}>Address</Label>
+                                        <Textarea
+                                            id={field.name}
+                                            name={field.name}
+                                            value={field.state.value}
+                                            placeholder="Enter address if available"
+                                            onBlur={field.handleBlur}
+                                            onChange={(event) => field.handleChange(event.target.value)}
+                                            rows={4}
+                                        />
+                                        <FieldError message={getFieldErrorMessage(field) || serverFieldErrors.address} />
+                                    </div>
+                                )}
+                            </form.Field>
+                        </div>
+
+                        <form.Field
+                            name="specialties"
+                            validators={{ onChange: createDoctorFormSchema.shape.specialties }}
+                        >
+                            {(field) => (
+                                <div className="space-y-3 rounded-lg border p-4">
+                                    <div className="space-y-1">
+                                        <Label>Specialties</Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Select one or more specialties for this doctor.
+                                        </p>
+                                    </div>
+
+                                    {isSpecialtiesLoading ? (
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Loader2 className="size-4 animate-spin" />
+                                            Loading specialties...
+                                        </div>
+                                    ) : specialties.length > 0 ? (
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            {specialties.map((specialty) => {
+                                                const checked = field.state.value.includes(specialty.id);
+
+                                                return (
+                                                    <div
+                                                        key={specialty.id}
+                                                        className="flex items-start gap-3 rounded-md border px-3 py-3 text-sm"
+                                                    >
+                                                        <Checkbox
+                                                            checked={checked}
+                                                            onCheckedChange={(isChecked) => {
+                                                                if (isChecked) {
+                                                                    field.handleChange([
+                                                                        ...field.state.value,
+                                                                        specialty.id,
+                                                                    ]);
+                                                                    return;
+                                                                }
+
+                                                                field.handleChange(
+                                                                    field.state.value.filter(
+                                                                        (value) => value !== specialty.id,
+                                                                    ),
+                                                                );
+                                                            }}
+                                                        />
+
+                                                        <div className="space-y-1">
+                                                            <p className="font-medium leading-none">
+                                                                {specialty.title}
+                                                            </p>
+                                                            {specialty.description && (
+                                                                <p className="text-muted-foreground">
+                                                                    {specialty.description}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            No specialties available right now.
+                                        </p>
+                                    )}
+
+                                    <FieldError
+                                        message={getFieldErrorMessage(field) || serverFieldErrors.specialties}
+                                    />
+                                </div>
+                            )}
+                        </form.Field>
+                    </div>
+
+                    <div className="border-t px-4 py-4">
+                        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => handleOpenChange(false)}
+                            >
+                                Cancel
+                            </Button>
+
+                            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting] as const}>
+                                {([canSubmit, isSubmitting]) => (
+                                    <AppSubmitButton
+                                        isPending={isSubmitting || isPending}
+                                        pendingLabel="Creating Doctor..."
+                                        disabled={!canSubmit}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        Create Doctor
+                                    </AppSubmitButton>
+                                )}
+                            </form.Subscribe>
+                        </div>
+                    </div>
+                </form>
+            </SheetContent>
+        </Sheet>
+    );
+};
+
+export default CreateDoctorSheet;

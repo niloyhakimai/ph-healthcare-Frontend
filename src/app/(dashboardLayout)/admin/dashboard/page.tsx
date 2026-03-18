@@ -1,11 +1,12 @@
-import { Button } from "@/components/ui/button";
+import AdminDashboardContent from "@/components/modules/Dashboard/AdminDashboardContent";
+import { getDashboardData } from "@/services/dashboard.services";
 
-export default function Home() {
-
+const AdminDashboardPage = async () => {
+  const dashboardResponse = await getDashboardData();
+  
   return (
-    <div className="flex min-h-screen flex-col items-center justify-between p-24">
-      <Button variant="outline">Get Started</Button>
-    </div>
-  );
-
+    <AdminDashboardContent dashboardResponse={dashboardResponse} />
+  )
 }
+
+export default AdminDashboardPage

@@ -75,3 +75,20 @@ export const getDefaultdashboardRoute = (role : UserRole) => {
     }
     return "/"
 }
+
+export const isValidRedirectForRole = (redirectPath: string, role: UserRole) => {
+    const unifySuperAdminAndAdminRole = role === "SUPER_ADMIN" ? "ADMIN" : role;
+
+    role = unifySuperAdminAndAdminRole;
+
+    const routerOwner = getRouteOwner(redirectPath);
+
+    if(routerOwner === null || routerOwner === "COMMON") {
+        return true;
+    }
+
+    if(routerOwner === role) {
+        return true;
+    }
+    return false;
+} 
