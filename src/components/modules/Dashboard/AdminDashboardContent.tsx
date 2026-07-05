@@ -1,5 +1,6 @@
 "use client"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import AppointmentBarChart from "@/components/shared/AppointmentBarChart"
 import AppointmentPieChart from "@/components/shared/AppointmentPieChart"
 import StatsCard from "@/components/shared/StatsCard"
@@ -13,7 +14,13 @@ interface AdminDashboardContentProps {
 const AdminDashboardContent = ({ dashboardResponse }: AdminDashboardContentProps) => {
     const data = dashboardResponse?.data;
   return (
-    <div>
+    <div className="space-y-6">
+        {!dashboardResponse.success && (
+            <Alert>
+                <AlertDescription>{dashboardResponse.message}</AlertDescription>
+            </Alert>
+        )}
+
         <StatsCard 
         title="Total Appointments"
         value={data?.appointmentCount || 0}

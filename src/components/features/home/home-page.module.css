@@ -1,0 +1,102 @@
+.shell {
+  --home-bg: #f6efe5;
+  --home-surface: rgba(255, 251, 246, 0.84);
+  --home-surface-strong: #fffaf4;
+  --home-ink: #12231f;
+  --home-muted: #52635f;
+  --home-line: rgba(18, 35, 31, 0.1);
+  --home-teal: #0f766e;
+  --home-amber: #d38a1d;
+  --home-shadow: 0 28px 90px rgba(18, 35, 31, 0.12);
+  min-height: 100vh;
+  color: var(--home-ink);
+  background:
+    radial-gradient(circle at 10% 12%, rgba(15, 118, 110, 0.18), transparent 30%),
+    radial-gradient(circle at 88% 10%, rgba(211, 138, 29, 0.2), transparent 24%),
+    linear-gradient(180deg, #f6efe5 0%, #fffaf4 46%, #f1ebe1 100%);
+}
+
+.display {
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  letter-spacing: -0.04em;
+}
+
+.shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.32;
+  background-image:
+    linear-gradient(rgba(18, 35, 31, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 35, 31, 0.03) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(180deg, black 0%, black 60%, transparent 100%);
+}
+
+.brandMark {
+  box-shadow: 0 14px 34px rgba(15, 118, 110, 0.22);
+  background: linear-gradient(135deg, #0f766e 0%, #18a39a 100%);
+}
+
+.heroGlow {
+  position: absolute;
+  top: -2rem;
+  right: -2rem;
+  z-index: 0;
+  height: 15rem;
+  width: 15rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(211, 138, 29, 0.26) 0%, rgba(211, 138, 29, 0) 72%);
+  filter: blur(10px);
+  animation: drift 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.panel {
+  border: 1px solid var(--home-line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 249, 241, 0.92) 100%);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--home-shadow);
+}
+
+.softPanel {
+  border: 1px solid rgba(18, 35, 31, 0.08);
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.accentPanel {
+  border: 1px solid rgba(18, 35, 31, 0.09);
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.08) 0%, rgba(211, 138, 29, 0.12) 100%);
+}
+
+.metricPill {
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--home-teal);
+}
+
+.statusDot {
+  height: 0.55rem;
+  width: 0.55rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--home-teal) 0%, #34b6ad 100%);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+}
+
+.footerPanel {
+  border: 1px solid rgba(18, 35, 31, 0.12);
+  background: linear-gradient(180deg, rgba(16, 30, 27, 0.95) 0%, rgba(24, 42, 39, 0.98) 100%);
+  box-shadow: 0 28px 90px rgba(12, 24, 22, 0.24);
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-10px, 12px, 0) scale(1.04);
+  }
+}

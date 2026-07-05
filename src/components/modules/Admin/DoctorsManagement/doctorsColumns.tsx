@@ -26,7 +26,7 @@ export const doctorSortableColumnIds: ReadonlyArray<string> = [
             <UserInfoCell 
                 name={row.original.name}
                 email ={row.original.email}
-                profilePhoto ={row.original.profilePhoto}
+                profilePhoto ={row.original.profilePhoto ?? undefined}
 
                 />
         ),

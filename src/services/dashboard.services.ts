@@ -1,6 +1,7 @@
 "use server";
 
 import { httpClient } from "@/lib/axios/httpClient";
+import axios from "axios";
 import { ApiResponse } from "@/types/api.types";
 import { IAdminDashboardData } from "@/types/dashboard.types";
 
@@ -21,18 +22,28 @@ export async function getDashboardData(): Promise<ApiResponse<IAdminDashboardDat
     try {
         const response = await httpClient.get<IAdminDashboardData>("/stats", {
             suppressErrorLog: true,
-        })
+        });
 
         return response;
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : "An error accurred while fetching data";
-        console.log(error, "Form Dashboard Server Action");
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+            return {
+                success: false,
+                message: "Dashboard metrics are not available yet. Showing empty values until the stats API is ready.",
+                data: emptyDashboardData,
+                meta: undefined,
+            };
+        }
+
+        const message = error instanceof Error ? error.message : "An error occurred while fetching dashboard data.";
+
+        console.error("Failed to fetch dashboard data:", error);
 
         return {
             success: false,
             message,
             data: emptyDashboardData,
-            meta : undefined
-        }
+            meta: undefined,
+        };
     }
 }

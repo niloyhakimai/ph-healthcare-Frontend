@@ -19,6 +19,8 @@ interface DataTablePaginationProps<TData> {
     totalRows: number;
     currentRowCount: number;
     limitOptions?: readonly number[];
+    itemLabel?: string;
+    pageSizeLabel?: string;
 }
 
 const getVisiblePages = (currentPage: number, totalPages: number) => {
@@ -53,6 +55,8 @@ const DataTablePagination = <TData,>({
     totalRows,
     currentRowCount,
     limitOptions = [1, 10, 20, 50, 100],
+    itemLabel = "records",
+    pageSizeLabel = "Rows per page",
 }: DataTablePaginationProps<TData>) => {
     const { pageIndex, pageSize } = table.getState().pagination;
     const [customLimit, setCustomLimit] = useState(String(pageSize));
@@ -106,11 +110,11 @@ const DataTablePagination = <TData,>({
         <div className="flex flex-col gap-4 border-t px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
                 <div className="text-sm text-muted-foreground">
-                    Showing {rowStart}-{rowEnd} of {totalRows} records
+                    Showing {rowStart}-{rowEnd} of {totalRows} {itemLabel}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Rows per page</span>
+                    <span className="text-sm font-medium text-muted-foreground">{pageSizeLabel}</span>
                     <Select
                         value={String(pageSize)}
                         onValueChange={(value) => applyPageSize(Number(value))}

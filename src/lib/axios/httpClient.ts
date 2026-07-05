@@ -15,7 +15,7 @@ async function tryRefreshToken(
     accessToken: string,
     refreshToken: string
 ): Promise<void> {
-    if(!isTokenExpiringSoon(accessToken)) {
+    if (!(await isTokenExpiringSoon(accessToken))) {
         return;
     }
 
@@ -33,12 +33,12 @@ async function tryRefreshToken(
 }
 
 
-const axiosIntance = async () => {
+const axiosIntance = async (options?: ApiResponseOptions) => {
     const cookieStore = await cookies()
     const accessToken = cookieStore.get("accessToken")?.value;
     const refreshToken = cookieStore.get("refreshToken")?.value;
 
-    if(accessToken && refreshToken) {
+    if (!options?.skipTokenRefresh && accessToken && refreshToken) {
         await tryRefreshToken(accessToken, refreshToken);
     }
 
@@ -63,12 +63,13 @@ export interface ApiResponseOptions {
     params?: Record<string, unknown>;
     headers?: Record<string, string>;
     suppressErrorLog?: boolean;
+    skipTokenRefresh?: boolean;
 }
 
 const httpGet = async <TData>(endpoint: string, options?: ApiResponseOptions) : Promise<ApiResponse <TData>> => {
 
     try {
-        const instance = await axiosIntance();
+        const instance = await axiosIntance(options);
         const response = await instance.get<ApiResponse<TData>>(endpoint, {
             params: options?.params,
             headers: options?.headers,
@@ -84,7 +85,7 @@ const httpGet = async <TData>(endpoint: string, options?: ApiResponseOptions) : 
 
 const httpPost = async <TData>(endpoint: string, data?: unknown, options?: ApiResponseOptions) : Promise<ApiResponse<TData>> => {
     try {
-        const instance = await axiosIntance();
+        const instance = await axiosIntance(options);
         const response = await instance.post<ApiResponse<TData>>(endpoint, data, {
             params: options?.params,
             headers: options?.headers,
@@ -101,7 +102,7 @@ const httpPost = async <TData>(endpoint: string, data?: unknown, options?: ApiRe
 
 const httpPut = async <TData>(endpoint: string, data?: unknown, options?: ApiResponseOptions) : Promise<ApiResponse<TData>>=> {
     try {
-        const instance = await axiosIntance();
+        const instance = await axiosIntance(options);
         const response = await instance.put<ApiResponse<TData>>(endpoint, data, {
             params: options?.params,
             headers: options?.headers,
@@ -117,7 +118,7 @@ const httpPut = async <TData>(endpoint: string, data?: unknown, options?: ApiRes
 
 const httpPatch = async <TData>(endpoint: string, data?: unknown, options?: ApiResponseOptions) : Promise<ApiResponse<TData>> => {
     try {
-        const instance = await axiosIntance();
+        const instance = await axiosIntance(options);
         const response = await instance.patch<ApiResponse<TData>>(endpoint, data, { 
             params: options?.params,
             headers: options?.headers,
@@ -136,7 +137,7 @@ const httpPatch = async <TData>(endpoint: string, data?: unknown, options?: ApiR
 
 const httpDelete = async <TData>(endpoint: string, options?: ApiResponseOptions) : Promise<ApiResponse<TData>>=> {
     try {
-        const instance = await axiosIntance();
+        const instance = await axiosIntance(options);
         const response = await instance.delete<ApiResponse<TData>>(endpoint, {
             params: options?.params,
             headers: options?.headers,

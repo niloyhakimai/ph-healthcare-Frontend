@@ -1,9 +1,8 @@
-import React from 'react'
+import PatientAppointmentsList from "@/components/modules/appointments/PatientAppointmentsList";
+import React from "react";
 
 export const MyAppointmentPage = () => {
-  return (
-    <div>MyAppointmentPage</div>
-  )
-}
+    return <PatientAppointmentsList />;
+};
 
 export default MyAppointmentPage;

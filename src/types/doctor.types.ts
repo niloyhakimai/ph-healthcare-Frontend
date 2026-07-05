@@ -14,7 +14,7 @@ export interface IDoctor {
     id: string | number;
     name: string;
     email : string;
-    profilePhoto ?: string;
+    profilePhoto ?: string | null;
     contactNumber?: string;
     address?: string;
     registrationNumber: string;
@@ -30,6 +30,7 @@ export interface IDoctor {
         status : UserStatus
     }
     experience: number;
+    doctorSchedules?: IDoctorScheduleSummary[];
     specialties : Array<{
         specialtyId : string;
         doctorId : string;
@@ -43,11 +44,49 @@ export interface IDoctor {
 
 export type CreateDoctorGender = Gender.MALE | Gender.FEMALE;
 
+export interface IReviewPatientSummary {
+    id?: string;
+    name?: string;
+    email?: string;
+    user?: {
+        name?: string;
+        email?: string;
+    };
+}
+
+export interface IReviewAppointmentSummary {
+    id: string;
+}
+
+export interface IDoctorReview {
+    id: string;
+    rating: number;
+    comment?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+    doctorId?: string;
+    patientId?: string;
+    appointmentId?: string;
+    patient?: IReviewPatientSummary;
+    appointment?: IReviewAppointmentSummary;
+}
+
+export interface IDoctorScheduleSummary {
+    id: string;
+    isBooked?: boolean;
+    scheduleId?: string;
+    schedule?: {
+        id?: string;
+        startDateTime: string;
+        endDateTime: string;
+    };
+}
+
 export interface IDoctorDetails extends IDoctor {
     profilePhoto?: string | null;
     appointments?: unknown[];
-    doctorSchedules?: unknown[];
-    reviews?: unknown[];
+    doctorSchedules?: IDoctorScheduleSummary[];
+    reviews?: IDoctorReview[];
 }
 
 export interface CreateDoctorPayload {

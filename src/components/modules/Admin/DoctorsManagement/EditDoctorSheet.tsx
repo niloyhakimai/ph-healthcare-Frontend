@@ -246,9 +246,7 @@ const EditDoctorSheet = ({ doctorId, isOpen, onOpenChange, onSuccess }: EditDoct
     // Reset form when doctor data loads
     React.useEffect(() => {
         if (doctor) {
-            form.reset({
-                values: createDefaultEditDoctorFormValues(doctor),
-            });
+            form.reset(createDefaultEditDoctorFormValues(doctor));
         }
     }, [doctorId, form]);
 
